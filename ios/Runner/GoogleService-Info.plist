@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>1003770226717-acod1gh111a8cc89dntuhr7qlj5ln88p.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.1003770226717-acod1gh111a8cc89dntuhr7qlj5ln88p</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAC2oE6VpbpW_x41DssCWbHkadLEQyunJU</string>
+	<key>GCM_SENDER_ID</key>
+	<string>1003770226717</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.craftbloom.craftbloom</string>
+	<key>PROJECT_ID</key>
+	<string>craftbloom-1fde1</string>
+	<key>STORAGE_BUCKET</key>
+	<string>craftbloom-1fde1.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:1003770226717:ios:bbd19d4a6e612e90287ef4</string>
+</dict>
+</plist>
