@@ -110,6 +110,19 @@ class OrderRepository {
       });
     }
 
+    // Incrementar orderCount por cada item del pedido
+    if (items.isNotEmpty) {
+      final batch = _db.batch();
+      for (final item in items) {
+        final col = item.isPackage ? 'packages' : 'products';
+        batch.update(
+          _db.collection(col).doc(item.productId),
+          {'orderCount': FieldValue.increment(item.quantity)},
+        );
+      }
+      await batch.commit();
+    }
+
     return order;
   }
 

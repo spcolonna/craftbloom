@@ -12,6 +12,7 @@ class ProductModel extends Equatable {
   final bool isActive;
   final List<String> tags;
   final int viewCount;
+  final int orderCount;
   final DateTime createdAt;
 
   const ProductModel({
@@ -25,6 +26,7 @@ class ProductModel extends Equatable {
     required this.isActive,
     required this.tags,
     required this.viewCount,
+    this.orderCount = 0,
     required this.createdAt,
   });
 
@@ -40,6 +42,7 @@ class ProductModel extends Equatable {
         'isActive': isActive,
         'tags': tags,
         'viewCount': viewCount,
+        'orderCount': orderCount,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 
@@ -56,6 +59,7 @@ class ProductModel extends Equatable {
       isActive: data['isActive'] as bool? ?? true,
       tags: List<String>.from(data['tags'] as List? ?? []),
       viewCount: (data['viewCount'] as num?)?.toInt() ?? 0,
+      orderCount: (data['orderCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -71,6 +75,7 @@ class ProductModel extends Equatable {
     bool? isActive,
     List<String>? tags,
     int? viewCount,
+    int? orderCount,
     DateTime? createdAt,
   }) =>
       ProductModel(
@@ -84,11 +89,12 @@ class ProductModel extends Equatable {
         isActive: isActive ?? this.isActive,
         tags: tags ?? this.tags,
         viewCount: viewCount ?? this.viewCount,
+        orderCount: orderCount ?? this.orderCount,
         createdAt: createdAt ?? this.createdAt,
       );
 
   @override
-  List<Object?> get props => [id, name, price, isActive, viewCount];
+  List<Object?> get props => [id, name, price, isActive, viewCount, orderCount];
 }
 
 class PackageModel extends Equatable {
@@ -102,6 +108,7 @@ class PackageModel extends Equatable {
   final List<String> items;
   final bool isActive;
   final int viewCount;
+  final int orderCount;
   final DateTime createdAt;
 
   const PackageModel({
@@ -115,6 +122,7 @@ class PackageModel extends Equatable {
     required this.items,
     required this.isActive,
     required this.viewCount,
+    this.orderCount = 0,
     required this.createdAt,
   });
 
@@ -130,6 +138,7 @@ class PackageModel extends Equatable {
         'items': items,
         'isActive': isActive,
         'viewCount': viewCount,
+        'orderCount': orderCount,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 
@@ -146,6 +155,7 @@ class PackageModel extends Equatable {
       items: List<String>.from(data['items'] as List? ?? []),
       isActive: data['isActive'] as bool? ?? true,
       viewCount: (data['viewCount'] as num?)?.toInt() ?? 0,
+      orderCount: (data['orderCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -161,6 +171,7 @@ class PackageModel extends Equatable {
     List<String>? items,
     bool? isActive,
     int? viewCount,
+    int? orderCount,
     DateTime? createdAt,
   }) =>
       PackageModel(
@@ -174,9 +185,10 @@ class PackageModel extends Equatable {
         items: items ?? this.items,
         isActive: isActive ?? this.isActive,
         viewCount: viewCount ?? this.viewCount,
+        orderCount: orderCount ?? this.orderCount,
         createdAt: createdAt ?? this.createdAt,
       );
 
   @override
-  List<Object?> get props => [id, name, price, isActive, viewCount];
+  List<Object?> get props => [id, name, price, isActive, viewCount, orderCount];
 }

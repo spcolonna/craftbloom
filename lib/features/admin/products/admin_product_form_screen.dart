@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,9 @@ import 'package:craftbloom/core/utils/validators.dart';
 import 'package:craftbloom/features/shop/data/product_model.dart';
 import 'package:craftbloom/features/shop/data/shop_repository.dart';
 import 'package:craftbloom/shared/widgets/app_loading.dart';
+
+// Each entry in the ordered image list is either a URL (String) or a new file (XFile).
+typedef _ImageEntry = Object; // String | XFile
 
 class AdminProductFormScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -35,16 +39,18 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
 
   String? _selectedCategory;
   String? _selectedOccasion;
-  List<String> _existingImages = [];
-  List<XFile> _newImages = [];
+
+  // Ordered list of images: String = existing URL, XFile = new file to upload
+  final List<_ImageEntry> _images = [];
+
   List<TextEditingController> _itemCtrlList = [];
   bool _isActive = true;
   bool _isPackage = false;
   bool _initializing = false;
   bool _loading = false;
 
-  // Preserved from existing record when editing
   int _viewCount = 0;
+  int _orderCount = 0;
   DateTime? _createdAt;
 
   @override
@@ -88,9 +94,12 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                 : pkg.price.toString();
             _priceUnitCtrl.text = pkg.priceUnit;
             _selectedOccasion = pkg.occasion;
-            _existingImages = List.from(pkg.imageUrls);
+            _images
+              ..clear()
+              ..addAll(pkg.imageUrls);
             _isActive = pkg.isActive;
             _viewCount = pkg.viewCount;
+            _orderCount = pkg.orderCount;
             _createdAt = pkg.createdAt;
             for (final c in _itemCtrlList) {
               c.dispose();
@@ -110,15 +119,19 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                 : product.price.toString();
             _priceUnitCtrl.text = product.priceUnit;
             _selectedCategory = product.category;
-            _existingImages = List.from(product.imageUrls);
+            _images
+              ..clear()
+              ..addAll(product.imageUrls);
             _isActive = product.isActive;
             _viewCount = product.viewCount;
+            _orderCount = product.orderCount;
             _createdAt = product.createdAt;
             _initializing = false;
           });
         }
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Error loading product: $e\n$st');
       if (mounted) {
         setState(() => _initializing = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +144,7 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final picked = await picker.pickMultiImage();
-    if (picked.isNotEmpty) setState(() => _newImages.addAll(picked));
+    if (picked.isNotEmpty) setState(() => _images.addAll(picked));
   }
 
   Future<void> _save() async {
@@ -139,39 +152,63 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
     setState(() => _loading = true);
 
     try {
+      final repo = ref.read(shopRepositoryProvider);
       final price = double.tryParse(_priceCtrl.text.replaceAll(',', '.')) ?? 0;
       final now = DateTime.now();
 
+      // Pre-generate ID so we can upload to the right path before saving
+      final docId = (widget.productId?.isNotEmpty == true)
+          ? widget.productId!
+          : (_isPackage ? repo.generatePackageId() : repo.generateProductId());
+
+      // Upload new XFiles in order, collecting their URLs
+      final xfilesInOrder = _images.whereType<XFile>().toList();
+      List<String> uploadedUrls = [];
+      if (xfilesInOrder.isNotEmpty) {
+        final path = _isPackage ? 'packages/$docId' : 'products/$docId';
+        uploadedUrls = await repo.uploadImages(path, xfilesInOrder);
+      }
+
+      // Build final ordered URL list preserving the user's chosen order
+      int uploadIdx = 0;
+      final orderedUrls = _images.map((img) {
+        if (img is String) return img;
+        return uploadedUrls[uploadIdx++];
+      }).toList();
+
       if (_isPackage) {
         final package = PackageModel(
-          id: widget.productId ?? '',
+          id: docId,
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
           occasion: _selectedOccasion ?? AppConfig.packageOccasions.first,
-          imageUrls: _existingImages,
+          imageUrls: orderedUrls,
           price: price,
           priceUnit: _priceUnitCtrl.text.trim(),
           items: _itemCtrlList.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList(),
           isActive: _isActive,
           viewCount: _viewCount,
+          orderCount: _orderCount,
           createdAt: _createdAt ?? now,
         );
-        await ref.read(shopRepositoryProvider).savePackage(package, _newImages);
+        // Pass empty [] since we already uploaded and built orderedUrls
+        await repo.savePackage(package, []);
       } else {
         final product = ProductModel(
-          id: widget.productId ?? '',
+          id: docId,
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
           category: _selectedCategory ?? AppConfig.productCategories.first,
-          imageUrls: _existingImages,
+          imageUrls: orderedUrls,
           price: price,
           priceUnit: _priceUnitCtrl.text.trim(),
           isActive: _isActive,
           tags: [],
           viewCount: _viewCount,
+          orderCount: _orderCount,
           createdAt: _createdAt ?? now,
         );
-        await ref.read(shopRepositoryProvider).saveProduct(product, _newImages);
+        await repo.saveProduct(product, []);
       }
 
       if (mounted) {
@@ -180,10 +217,14 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
           SnackBar(content: Text(widget.productId == null ? 'Producto creado.' : 'Producto actualizado.')),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Error saving product: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error: $e'),
+            duration: const Duration(seconds: 8),
+          ),
         );
       }
     } finally {
@@ -328,49 +369,47 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                     const SizedBox(height: AppSizes.md),
                   ],
 
-                  Text('Imágenes', style: Theme.of(context).textTheme.titleLarge),
+                  // ── Imágenes con reordenamiento ────────────────
+                  Row(
+                    children: [
+                      Text('Imágenes', style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(width: AppSizes.sm),
+                      if (_images.isNotEmpty)
+                        Text(
+                          '(arrastrá para ordenar · la primera es la principal)',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: AppSizes.sm),
-                  if (_existingImages.isNotEmpty || _newImages.isNotEmpty)
-                    SizedBox(
-                      height: 100,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          ..._existingImages.map(
-                            (url) => Stack(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(right: AppSizes.sm),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                                    child: CachedNetworkImage(imageUrl: url, width: 100, height: 100, fit: BoxFit.cover),
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 4, right: 12,
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _existingImages.remove(url)),
-                                    child: Container(
-                                      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                      child: const Icon(Icons.close, size: 16, color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ..._newImages.map(
-                            (x) => Padding(
-                              padding: const EdgeInsets.only(right: AppSizes.sm),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                                child: _XFilePreview(xfile: x),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+
+                  if (_images.isNotEmpty)
+                    ReorderableListView(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      onReorder: (oldIdx, newIdx) {
+                        setState(() {
+                          if (newIdx > oldIdx) newIdx--;
+                          final item = _images.removeAt(oldIdx);
+                          _images.insert(newIdx, item);
+                        });
+                      },
+                      children: _images.asMap().entries.map((e) {
+                        final i = e.key;
+                        final img = e.value;
+                        final key = img is String
+                            ? ValueKey('url_$i')
+                            : ValueKey('file_$i');
+                        return _ImageRow(
+                          key: key,
+                          index: i,
+                          image: img,
+                          isFirst: i == 0,
+                          onRemove: () => setState(() => _images.removeAt(i)),
+                        );
+                      }).toList(),
                     ),
+
                   const SizedBox(height: AppSizes.sm),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.add_photo_alternate_outlined),
@@ -403,16 +442,88 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
   }
 }
 
+class _ImageRow extends StatelessWidget {
+  final int index;
+  final Object image; // String URL or XFile
+  final bool isFirst;
+  final VoidCallback onRemove;
+
+  const _ImageRow({
+    required super.key,
+    required this.index,
+    required this.image,
+    required this.isFirst,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSizes.xs),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+        child: Row(
+          children: [
+            ReorderableDragStartListener(
+              index: index,
+              child: Icon(Icons.drag_handle, color: AppColors.textDisabled),
+            ),
+            const SizedBox(width: AppSizes.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+              child: image is String
+                  ? CachedNetworkImage(
+                      imageUrl: image as String,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                    )
+                  : _XFilePreview(xfile: image as XFile, size: 64),
+            ),
+            const SizedBox(width: AppSizes.sm),
+            if (isFirst)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                ),
+                child: Text(
+                  'Principal',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              )
+            else
+              Text(
+                '#${index + 1}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textDisabled),
+              ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: AppColors.error),
+              onPressed: onRemove,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _XFilePreview extends StatefulWidget {
   final XFile xfile;
-  const _XFilePreview({required this.xfile});
+  final double size;
+  const _XFilePreview({required this.xfile, this.size = 100});
 
   @override
   State<_XFilePreview> createState() => _XFilePreviewState();
 }
 
 class _XFilePreviewState extends State<_XFilePreview> {
-  late final Future<dynamic> _bytesFuture;
+  late final Future<Uint8List> _bytesFuture;
 
   @override
   void initState() {
@@ -422,13 +533,17 @@ class _XFilePreviewState extends State<_XFilePreview> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
+    return FutureBuilder<Uint8List>(
       future: _bytesFuture,
       builder: (context, snap) {
         if (!snap.hasData) {
-          return const SizedBox(width: 100, height: 100, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+          return SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
         }
-        return Image.memory(snap.data!, width: 100, height: 100, fit: BoxFit.cover);
+        return Image.memory(snap.data!, width: widget.size, height: widget.size, fit: BoxFit.cover);
       },
     );
   }

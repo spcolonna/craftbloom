@@ -110,6 +110,29 @@ class ShopRepository {
     await _packages.doc(id).update({'isActive': false});
   }
 
+  String generateProductId() => _products.doc().id;
+  String generatePackageId() => _packages.doc().id;
+
+  // ── Imágenes ──────────────────────────────────
+  Future<List<String>> uploadImages(String path, List<XFile> files) => _uploadImages(path, files);
+
+  // ── Rankings ──────────────────────────────────
+  Stream<List<ProductModel>> watchTopProducts({String orderBy = 'orderCount', int limit = 10}) {
+    return _products
+        .orderBy(orderBy, descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((s) => s.docs.map(ProductModel.fromDoc).toList());
+  }
+
+  Stream<List<PackageModel>> watchTopPackages({String orderBy = 'orderCount', int limit = 10}) {
+    return _packages
+        .orderBy(orderBy, descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((s) => s.docs.map(PackageModel.fromDoc).toList());
+  }
+
   // ── Privados ──────────────────────────────────
   Future<List<String>> _uploadImages(String path, List<XFile> files) async {
     final urls = <String>[];
@@ -153,4 +176,21 @@ final adminProductsProvider = StreamProvider<List<ProductModel>>((ref) {
 
 final adminPackagesProvider = StreamProvider<List<PackageModel>>((ref) {
   return ref.watch(shopRepositoryProvider).watchPackages(activeOnly: false);
+});
+
+// Rankings para métricas
+final topProductsByOrdersProvider = StreamProvider<List<ProductModel>>((ref) {
+  return ref.watch(shopRepositoryProvider).watchTopProducts(orderBy: 'orderCount');
+});
+
+final topProductsByViewsProvider = StreamProvider<List<ProductModel>>((ref) {
+  return ref.watch(shopRepositoryProvider).watchTopProducts(orderBy: 'viewCount');
+});
+
+final topPackagesByOrdersProvider = StreamProvider<List<PackageModel>>((ref) {
+  return ref.watch(shopRepositoryProvider).watchTopPackages(orderBy: 'orderCount');
+});
+
+final topPackagesByViewsProvider = StreamProvider<List<PackageModel>>((ref) {
+  return ref.watch(shopRepositoryProvider).watchTopPackages(orderBy: 'viewCount');
 });

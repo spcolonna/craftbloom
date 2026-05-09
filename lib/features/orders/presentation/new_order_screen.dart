@@ -137,6 +137,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
               name: ci.name,
               quantity: ci.quantity,
               specs: '',
+              isPackage: ci.isPackage,
             ),
           )
           .toList();

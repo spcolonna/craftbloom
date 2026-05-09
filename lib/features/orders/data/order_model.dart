@@ -84,6 +84,7 @@ class OrderItem extends Equatable {
   final int quantity;
   final String specs;
   final double? unitPrice;
+  final bool isPackage;
 
   const OrderItem({
     required this.productId,
@@ -91,6 +92,7 @@ class OrderItem extends Equatable {
     required this.quantity,
     required this.specs,
     this.unitPrice,
+    this.isPackage = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -99,6 +101,7 @@ class OrderItem extends Equatable {
         'quantity': quantity,
         'specs': specs,
         'unitPrice': unitPrice,
+        'isPackage': isPackage,
       };
 
   factory OrderItem.fromMap(Map<String, dynamic> map) => OrderItem(
@@ -107,10 +110,11 @@ class OrderItem extends Equatable {
         quantity: (map['quantity'] as num?)?.toInt() ?? 1,
         specs: map['specs'] as String? ?? '',
         unitPrice: (map['unitPrice'] as num?)?.toDouble(),
+        isPackage: map['isPackage'] as bool? ?? false,
       );
 
   @override
-  List<Object?> get props => [productId, name, quantity, specs, unitPrice];
+  List<Object?> get props => [productId, name, quantity, specs, unitPrice, isPackage];
 }
 
 class StatusChange extends Equatable {

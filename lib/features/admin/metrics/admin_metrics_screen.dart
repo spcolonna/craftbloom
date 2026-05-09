@@ -8,6 +8,7 @@ import 'package:craftbloom/core/constants/app_strings.dart';
 import 'package:craftbloom/core/utils/currency_formatter.dart';
 import 'package:craftbloom/features/orders/data/order_model.dart';
 import 'package:craftbloom/features/orders/data/order_repository.dart';
+import 'package:craftbloom/features/shop/data/shop_repository.dart';
 import 'package:craftbloom/shared/widgets/app_loading.dart';
 
 enum _DateFilter { week, month, quarter, all }
@@ -144,6 +145,10 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
                       ),
                     ),
                   ),
+                const SizedBox(height: AppSizes.xl),
+
+                // Rankings de popularidad
+                _PopularitySection(),
               ],
             ),
           );
@@ -250,6 +255,166 @@ class _ChartSection extends StatelessWidget {
         const SizedBox(height: AppSizes.md),
         Card(child: Padding(padding: const EdgeInsets.all(AppSizes.md), child: child)),
       ],
+    );
+  }
+}
+
+class _PopularitySection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productsByOrders = ref.watch(topProductsByOrdersProvider);
+    final packagesByOrders = ref.watch(topPackagesByOrdersProvider);
+    final productsByViews = ref.watch(topProductsByViewsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Popularidad de productos', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: AppSizes.md),
+
+        // Más pedidos
+        _RankingCard(
+          title: 'Más pedidos — Productos',
+          icon: Icons.shopping_bag_outlined,
+          color: AppColors.primary,
+          asyncItems: productsByOrders,
+          getName: (p) => p.name,
+          getValue: (p) => p.orderCount,
+          valueLabel: 'pedidos',
+        ),
+        const SizedBox(height: AppSizes.md),
+        _RankingCard(
+          title: 'Más pedidos — Paquetes',
+          icon: Icons.celebration_outlined,
+          color: AppColors.secondary,
+          asyncItems: packagesByOrders,
+          getName: (p) => p.name,
+          getValue: (p) => p.orderCount,
+          valueLabel: 'pedidos',
+        ),
+        const SizedBox(height: AppSizes.md),
+
+        // Más vistos
+        _RankingCard(
+          title: 'Más vistos — Productos',
+          icon: Icons.visibility_outlined,
+          color: AppColors.accent,
+          asyncItems: productsByViews,
+          getName: (p) => p.name,
+          getValue: (p) => p.viewCount,
+          valueLabel: 'vistas',
+        ),
+      ],
+    );
+  }
+}
+
+class _RankingCard<T> extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final AsyncValue<List<T>> asyncItems;
+  final String Function(T) getName;
+  final int Function(T) getValue;
+  final String valueLabel;
+
+  const _RankingCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.asyncItems,
+    required this.getName,
+    required this.getValue,
+    required this.valueLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: AppSizes.xs),
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: AppSizes.sm),
+            asyncItems.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text('Error: $e', style: TextStyle(color: AppColors.error)),
+              data: (items) {
+                final nonZero = items.where((i) => getValue(i) > 0).toList();
+                if (nonZero.isEmpty) {
+                  return Text(
+                    'Sin datos aún',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  );
+                }
+                final maxVal = getValue(nonZero.first).toDouble();
+                return Column(
+                  children: nonZero.take(7).toList().asMap().entries.map((e) {
+                    final item = e.value;
+                    final val = getValue(item).toDouble();
+                    final frac = maxVal > 0 ? val / maxVal : 0.0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.xs),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            child: Text(
+                              '${e.key + 1}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textDisabled,
+                                  ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  getName(item),
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                                  child: LinearProgressIndicator(
+                                    value: frac,
+                                    backgroundColor: color.withValues(alpha: 0.12),
+                                    valueColor: AlwaysStoppedAnimation(color),
+                                    minHeight: 6,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSizes.sm),
+                          Text(
+                            '${getValue(item)} $valueLabel',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: color,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
