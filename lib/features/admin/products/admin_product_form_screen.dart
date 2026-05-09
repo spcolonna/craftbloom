@@ -10,7 +10,7 @@ import 'package:craftbloom/core/constants/app_strings.dart';
 import 'package:craftbloom/core/utils/validators.dart';
 import 'package:craftbloom/features/shop/data/product_model.dart';
 import 'package:craftbloom/features/shop/data/shop_repository.dart';
-
+import 'package:craftbloom/shared/widgets/app_loading.dart';
 
 class AdminProductFormScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -39,8 +39,13 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
   List<XFile> _newImages = [];
   List<TextEditingController> _itemCtrlList = [];
   bool _isActive = true;
-  bool _loading = false;
   bool _isPackage = false;
+  bool _initializing = false;
+  bool _loading = false;
+
+  // Preserved from existing record when editing
+  int _viewCount = 0;
+  DateTime? _createdAt;
 
   @override
   void initState() {
@@ -48,6 +53,11 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
     _isPackage = widget.isPackage;
     _priceUnitCtrl.text = _isPackage ? 'por pack' : 'por unidad';
     _itemCtrlList = [TextEditingController()];
+
+    if (widget.productId != null) {
+      _initializing = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadExisting());
+    }
   }
 
   @override
@@ -62,6 +72,62 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
     super.dispose();
   }
 
+  Future<void> _loadExisting() async {
+    try {
+      if (_isPackage) {
+        final pkg = await ref.read(packageProvider(widget.productId!).future);
+        if (pkg != null && mounted) {
+          final itemCtrls = pkg.items.isNotEmpty
+              ? pkg.items.map((i) => TextEditingController(text: i)).toList()
+              : [TextEditingController()];
+          setState(() {
+            _nameCtrl.text = pkg.name;
+            _descCtrl.text = pkg.description;
+            _priceCtrl.text = pkg.price % 1 == 0
+                ? pkg.price.toInt().toString()
+                : pkg.price.toString();
+            _priceUnitCtrl.text = pkg.priceUnit;
+            _selectedOccasion = pkg.occasion;
+            _existingImages = List.from(pkg.imageUrls);
+            _isActive = pkg.isActive;
+            _viewCount = pkg.viewCount;
+            _createdAt = pkg.createdAt;
+            for (final c in _itemCtrlList) {
+              c.dispose();
+            }
+            _itemCtrlList = itemCtrls;
+            _initializing = false;
+          });
+        }
+      } else {
+        final product = await ref.read(productProvider(widget.productId!).future);
+        if (product != null && mounted) {
+          setState(() {
+            _nameCtrl.text = product.name;
+            _descCtrl.text = product.description;
+            _priceCtrl.text = product.price % 1 == 0
+                ? product.price.toInt().toString()
+                : product.price.toString();
+            _priceUnitCtrl.text = product.priceUnit;
+            _selectedCategory = product.category;
+            _existingImages = List.from(product.imageUrls);
+            _isActive = product.isActive;
+            _viewCount = product.viewCount;
+            _createdAt = product.createdAt;
+            _initializing = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _initializing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar datos: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final picked = await picker.pickMultiImage();
@@ -74,6 +140,7 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
 
     try {
       final price = double.tryParse(_priceCtrl.text.replaceAll(',', '.')) ?? 0;
+      final now = DateTime.now();
 
       if (_isPackage) {
         final package = PackageModel(
@@ -86,8 +153,8 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
           priceUnit: _priceUnitCtrl.text.trim(),
           items: _itemCtrlList.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList(),
           isActive: _isActive,
-          viewCount: 0,
-          createdAt: DateTime.now(),
+          viewCount: _viewCount,
+          createdAt: _createdAt ?? now,
         );
         await ref.read(shopRepositoryProvider).savePackage(package, _newImages);
       } else {
@@ -101,8 +168,8 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
           priceUnit: _priceUnitCtrl.text.trim(),
           isActive: _isActive,
           tags: [],
-          viewCount: 0,
-          createdAt: DateTime.now(),
+          viewCount: _viewCount,
+          createdAt: _createdAt ?? now,
         );
         await ref.read(shopRepositoryProvider).saveProduct(product, _newImages);
       }
@@ -127,6 +194,17 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
   @override
   Widget build(BuildContext context) {
     final isNew = widget.productId == null;
+
+    if (_initializing) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(AppStrings.editProduct),
+          leading: BackButton(onPressed: () => context.go('/admin/productos')),
+        ),
+        body: const AppLoading(),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isNew ? AppStrings.addProduct : AppStrings.editProduct),
@@ -142,7 +220,6 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Tipo (producto o paquete)
                   if (isNew)
                     SegmentedButton<bool>(
                       segments: const [
@@ -171,10 +248,10 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                   ),
                   const SizedBox(height: AppSizes.md),
 
-                  // Categoría / Ocasión
                   if (_isPackage)
                     DropdownButtonFormField<String>(
-                      value: _selectedOccasion,
+                      key: ValueKey('occasion_$_selectedOccasion'),
+                      initialValue: _selectedOccasion,
                       decoration: const InputDecoration(labelText: 'Ocasión'),
                       items: AppConfig.packageOccasions
                           .map((o) => DropdownMenuItem(value: o, child: Text(o)))
@@ -183,7 +260,8 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                     )
                   else
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      key: ValueKey('category_$_selectedCategory'),
+                      initialValue: _selectedCategory,
                       decoration: const InputDecoration(labelText: 'Categoría'),
                       items: AppConfig.productCategories
                           .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -216,7 +294,6 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                   ),
                   const SizedBox(height: AppSizes.md),
 
-                  // Items del paquete
                   if (_isPackage) ...[
                     Text('¿Qué incluye?', style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: AppSizes.sm),
@@ -251,7 +328,6 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                     const SizedBox(height: AppSizes.md),
                   ],
 
-                  // Imágenes
                   Text('Imágenes', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: AppSizes.sm),
                   if (_existingImages.isNotEmpty || _newImages.isNotEmpty)
@@ -304,7 +380,6 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                   ),
                   const SizedBox(height: AppSizes.md),
 
-                  // Activo
                   SwitchListTile(
                     title: const Text('Visible en la tienda'),
                     value: _isActive,
