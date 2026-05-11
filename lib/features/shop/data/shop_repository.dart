@@ -41,8 +41,7 @@ class ShopRepository {
   }
 
   Future<String> saveProduct(ProductModel product, List<XFile> newImages) async {
-    final isNew = product.id.isEmpty;
-    final ref = isNew ? _products.doc() : _products.doc(product.id);
+    final ref = product.id.isEmpty ? _products.doc() : _products.doc(product.id);
 
     List<String> imageUrls = List.from(product.imageUrls);
     if (newImages.isNotEmpty) {
@@ -51,11 +50,7 @@ class ShopRepository {
     }
 
     final data = product.copyWith(id: ref.id, imageUrls: imageUrls).toMap();
-    if (isNew) {
-      await ref.set(data);
-    } else {
-      await ref.update(data);
-    }
+    await ref.set(data);
     return ref.id;
   }
 
@@ -88,8 +83,7 @@ class ShopRepository {
   }
 
   Future<String> savePackage(PackageModel package, List<XFile> newImages) async {
-    final isNew = package.id.isEmpty;
-    final ref = isNew ? _packages.doc() : _packages.doc(package.id);
+    final ref = package.id.isEmpty ? _packages.doc() : _packages.doc(package.id);
 
     List<String> imageUrls = List.from(package.imageUrls);
     if (newImages.isNotEmpty) {
@@ -98,11 +92,7 @@ class ShopRepository {
     }
 
     final data = package.copyWith(id: ref.id, imageUrls: imageUrls).toMap();
-    if (isNew) {
-      await ref.set(data);
-    } else {
-      await ref.update(data);
-    }
+    await ref.set(data);
     return ref.id;
   }
 
@@ -137,13 +127,37 @@ class ShopRepository {
   Future<List<String>> _uploadImages(String path, List<XFile> files) async {
     final urls = <String>[];
     for (var i = 0; i < files.length; i++) {
-      final bytes = await files[i].readAsBytes();
-      final ref = _storage.ref('$path/image_${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
-      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      final file = files[i];
+      final bytes = await file.readAsBytes();
+      final mime = file.mimeType ?? _mimeFromName(file.name);
+      final ext = _extFromMime(mime);
+
+      final ref = _storage.ref('$path/image_${DateTime.now().millisecondsSinceEpoch}_$i.$ext');
+      // putData corrompe bytes en Flutter web (bug WASM→JS); base64 es confiable en todas las plataformas
+      await ref.putData(bytes, SettableMetadata(contentType: mime));
       urls.add(await ref.getDownloadURL());
     }
     return urls;
   }
+
+  String _mimeFromName(String name) {
+    final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+    return switch (ext) {
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      'heic' || 'heif' => 'image/heic',
+      _ => 'image/jpeg',
+    };
+  }
+
+  String _extFromMime(String mime) => switch (mime) {
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+        'image/heic' || 'image/heif' => 'heic',
+        _ => 'jpg',
+      };
 }
 
 final shopRepositoryProvider = Provider<ShopRepository>((ref) {
