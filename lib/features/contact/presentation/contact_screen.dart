@@ -82,7 +82,7 @@ class _ContactScreenState extends State<ContactScreen> {
                 _ContactButton(
                   icon: Icons.facebook,
                   label: 'Facebook',
-                  subtitle: 'CraftBloom',
+                  subtitle: AppConfig.businessName,
                   color: const Color(0xFF1877F2),
                   onTap: () => _launchUrl(AppConfig.facebookUrl),
                 ),

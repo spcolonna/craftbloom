@@ -109,7 +109,7 @@ class _AppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserModelProvider).value;
     return AppBar(
-      title: Text(AppConfig.businessName),
+      title: _LogoBadge(size: 36),
       actions: [
         if (user?.isWorker == true)
           IconButton(
@@ -141,16 +141,10 @@ class _TopNav extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSizes.xl),
             child: Row(
         children: [
-          // Logo / nombre
+          // Logo
           GestureDetector(
             onTap: () => context.go('/'),
-            child: Text(
-              AppConfig.businessName,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
+            child: _LogoBadge(size: 48),
           ),
           const Spacer(),
           // Links
@@ -221,6 +215,37 @@ class _NavLink extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(fontWeight: isActive ? FontWeight.w700 : FontWeight.w400),
+      ),
+    );
+  }
+}
+
+class _LogoBadge extends StatelessWidget {
+  final double size;
+  const _LogoBadge({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: AppColors.primary, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          AppConfig.logoAsset,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }

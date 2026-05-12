@@ -129,7 +129,6 @@ class _HeroSliver extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Container(
-        height: 380,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -139,16 +138,34 @@ class _HeroSliver extends StatelessWidget {
         ),
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(AppSizes.xl),
+            padding: const EdgeInsets.symmetric(vertical: AppSizes.xxl, horizontal: AppSizes.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  AppConfig.businessName,
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(color: AppColors.primaryDark),
-                  textAlign: TextAlign.center,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = (MediaQuery.of(context).size.width * 0.65).clamp(200.0, 320.0);
+                    return Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 32,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(AppConfig.logoAsset, fit: BoxFit.cover),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(height: AppSizes.sm),
+                const SizedBox(height: AppSizes.lg),
                 Text(
                   AppConfig.tagline,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: AppColors.textSecondary),

@@ -27,7 +27,7 @@ abstract final class ReviewsConfig {
       customerName: 'Sofía Pereira',
       rating: 5,
       comment:
-          'El baby shower de mi hermana fue un éxito total gracias a CraftBloom! '
+          'El baby shower de mi hermana fue un éxito total gracias a Guidaí Bilú! '
           'La guirnalda con el nombre del bebé fue lo que más gustó. '
           'Muy rápidas en la entrega y súper atentas por WhatsApp.',
       occasion: 'Baby Shower',
@@ -112,7 +112,7 @@ abstract final class ReviewsConfig {
       customerName: 'Catalina Torres',
       rating: 5,
       comment:
-          'Encontré CraftBloom por Instagram y fue la mejor decisión. '
+          'Encontré Guidaí Bilú por Instagram y fue la mejor decisión. '
           'Me ayudaron a diseñar algo completamente personalizado para mi emprendimiento. '
           'Responden rápido, son muy creativas y el resultado es impecable.',
       occasion: 'Personalizado',

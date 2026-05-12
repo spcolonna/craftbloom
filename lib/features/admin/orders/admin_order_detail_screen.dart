@@ -100,7 +100,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
   }
 
   Future<void> _contactViaWhatsApp(String phone, String orderCode) async {
-    final msg = Uri.encodeComponent('Hola! Te contactamos por tu pedido $orderCode de CraftBloom.');
+    final msg = Uri.encodeComponent('Hola! Te contactamos por tu pedido $orderCode de ${AppConfig.businessName}.');
     final url = 'https://wa.me/${phone.replaceAll(RegExp(r'\D'), '')}?text=$msg';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -108,7 +108,7 @@ class _AdminOrderDetailScreenState extends ConsumerState<AdminOrderDetailScreen>
   }
 
   Future<void> _contactViaEmail(String email, String orderCode) async {
-    final subject = Uri.encodeComponent('Tu pedido $orderCode - CraftBloom');
+    final subject = Uri.encodeComponent('Tu pedido $orderCode - ${AppConfig.businessName}');
     final url = 'mailto:$email?subject=$subject';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));

@@ -1,4 +1,4 @@
-/// Configuración de los packs de CraftBloom.
+/// Configuración de los packs de Guidaí Bilú.
 ///
 /// Las imágenes se ubican en assets/images/ con el nombre pack_N.jpg
 /// (pack_1.jpg = cumpleaños, pack_2.jpg = baby shower, …, pack_6.jpg = custom).

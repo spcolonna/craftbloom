@@ -1,7 +1,7 @@
 abstract final class AppStrings {
   // App
-  static const appName = 'CraftBloom';
-  static const tagline = 'Diseños que te enamoran';
+  static const appName = 'Guidaí Bilú';
+  static const tagline = 'Papelería Personalizada';
 
   // Navegación
   static const navHome = 'Inicio';

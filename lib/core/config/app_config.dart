@@ -8,12 +8,12 @@ import 'package:craftbloom/core/constants/app_colors.dart';
 
 abstract final class AppConfig {
   // ── Información del negocio ──────────────────
-  static const String businessName = 'CraftBloom';
-  static const String tagline = 'Diseños que te enamoran';
+  static const String businessName = 'Guidaí Bilú';
+  static const String tagline = 'Papelería Personalizada';
   static const String contactEmail = 'hola@craftbloom.com'; // ← COMPLETAR
   static const String whatsappNumber = '+598XXXXXXXXX';     // ← COMPLETAR (formato internacional)
   static const String instagramHandle = '@craftbloom';      // ← COMPLETAR
-  static const String logoAsset = 'assets/images/logo.png'; // ← Agregar logo al proyecto
+  static const String logoAsset = 'assets/images/logo.jpeg';
 
   // ── URLs de redes sociales ───────────────────
   static const String instagramUrl = 'https://instagram.com/craftbloom';   // ← COMPLETAR
