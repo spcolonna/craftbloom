@@ -173,7 +173,60 @@ exports.notifyAdminNewOrder = onDocumentUpdated('orders/{orderId}', async (event
   });
 });
 
-// ── 5. Agregar métricas diarias (se ejecuta manualmente o vía scheduler) ──
+// ── 5. Publicar en Instagram ─────────────────────────────────────────────────
+// Configurar secrets antes de usar:
+//   firebase functions:secrets:set IG_ACCESS_TOKEN
+//   firebase functions:secrets:set IG_ACCOUNT_ID
+// Ver lib/core/config/social_config.dart para instrucciones detalladas.
+exports.postToInstagram = onCall(
+  { secrets: ['IG_ACCESS_TOKEN', 'IG_ACCOUNT_ID'] },
+  async (request) => {
+    const accessToken = process.env.IG_ACCESS_TOKEN;
+    const accountId = process.env.IG_ACCOUNT_ID;
+
+    if (!accessToken || !accountId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Instagram no configurado. Ejecutar: firebase functions:secrets:set IG_ACCESS_TOKEN y IG_ACCOUNT_ID',
+      );
+    }
+
+    const { imageUrl, caption } = request.data;
+    if (!imageUrl) throw new HttpsError('invalid-argument', 'imageUrl requerido.');
+    if (!caption) throw new HttpsError('invalid-argument', 'caption requerido.');
+
+    const igBase = `https://graph.facebook.com/v20.0/${accountId}`;
+
+    // Paso 1: crear el contenedor de media
+    const createRes = await fetch(`${igBase}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: imageUrl, caption, access_token: accessToken }),
+    });
+    const createData = await createRes.json();
+    if (createData.error) {
+      console.error('IG create media error:', createData.error);
+      throw new HttpsError('internal', `Instagram error: ${createData.error.message}`);
+    }
+
+    // Paso 2: publicar el contenedor
+    const publishRes = await fetch(`${igBase}/media_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creation_id: createData.id, access_token: accessToken }),
+    });
+    const publishData = await publishRes.json();
+    if (publishData.error) {
+      console.error('IG publish error:', publishData.error);
+      throw new HttpsError('internal', `Instagram publish error: ${publishData.error.message}`);
+    }
+
+    console.log(`Instagram post published: ${publishData.id}`);
+    return { success: true, igMediaId: publishData.id };
+  }
+);
+
+// ── 6. Agregar métricas diarias (se ejecuta manualmente o vía scheduler) ──
 exports.aggregateDailyMetrics = onCall(async (request) => {
   const today = new Date().toISOString().split('T')[0];
   const startOfDay = new Date(today);

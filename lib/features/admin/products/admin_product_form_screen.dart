@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:craftbloom/core/config/app_config.dart';
+import 'package:craftbloom/core/config/social_config.dart';
 import 'package:craftbloom/core/constants/app_colors.dart';
 import 'package:craftbloom/core/constants/app_sizes.dart';
 import 'package:craftbloom/core/constants/app_strings.dart';
 import 'package:craftbloom/core/utils/validators.dart';
+import 'package:craftbloom/features/admin/social/social_service.dart';
 import 'package:craftbloom/features/shop/data/product_model.dart';
 import 'package:craftbloom/features/shop/data/shop_repository.dart';
 import 'package:craftbloom/shared/widgets/app_loading.dart';
@@ -48,6 +50,8 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
   bool _isPackage = false;
   bool _initializing = false;
   bool _loading = false;
+  bool _postToInstagram = false;
+  final _igCaptionCtrl = TextEditingController();
 
   int _viewCount = 0;
   int _orderCount = 0;
@@ -72,6 +76,7 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
     _descCtrl.dispose();
     _priceCtrl.dispose();
     _priceUnitCtrl.dispose();
+    _igCaptionCtrl.dispose();
     for (final c in _itemCtrlList) {
       c.dispose();
     }
@@ -209,6 +214,29 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
           createdAt: _createdAt ?? now,
         );
         await repo.saveProduct(product, []);
+      }
+
+      // Post to Instagram after saving if toggle is on and there's at least one image
+      if (_postToInstagram && orderedUrls.isNotEmpty) {
+        try {
+          final caption = _igCaptionCtrl.text.trim().isNotEmpty
+              ? _igCaptionCtrl.text.trim()
+              : '${_nameCtrl.text.trim()}\n\n${_descCtrl.text.trim()}';
+          await ref.read(socialServiceProvider).postToInstagram(
+                imageUrl: orderedUrls.first,
+                caption: caption,
+              );
+        } catch (igErr) {
+          debugPrint('Instagram post error: $igErr');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Producto guardado, pero no se pudo publicar en Instagram: $igErr'),
+                duration: const Duration(seconds: 8),
+              ),
+            );
+          }
+        }
       }
 
       if (mounted) {
@@ -424,6 +452,37 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
                     value: _isActive,
                     onChanged: (v) => setState(() => _isActive = v),
                   ),
+
+                  if (SocialConfig.instagramEnabled) ...[
+                    const Divider(height: AppSizes.xl),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.camera_alt_outlined),
+                      title: const Text('Publicar en Instagram'),
+                      subtitle: const Text('Publica la primera imagen al guardar'),
+                      value: _postToInstagram,
+                      onChanged: (v) => setState(() => _postToInstagram = v),
+                    ),
+                    if (_postToInstagram) ...[
+                      const SizedBox(height: AppSizes.sm),
+                      TextFormField(
+                        controller: _igCaptionCtrl,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Texto del post (opcional)',
+                          hintText:
+                              'Dejar vacío para usar el nombre y descripción del producto',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Padding(
+                            padding: EdgeInsets.only(bottom: 48),
+                            child: Icon(Icons.short_text),
+                          ),
+                          helperText:
+                              'Podés incluir hashtags y emojis. Ej: #stickers #papeleria',
+                        ),
+                      ),
+                    ],
+                  ],
+
                   const SizedBox(height: AppSizes.xl),
 
                   ElevatedButton(
